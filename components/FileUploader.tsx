@@ -65,10 +65,11 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, isLoad
       </div>
 
       <div 
-        className={`relative border-2 border-dashed rounded-[3rem] p-20 flex flex-col items-center justify-center transition-all duration-500 ${
+        onClick={triggerFileInput}
+        className={`relative border-2 border-dashed rounded-[3rem] p-20 flex flex-col items-center justify-center transition-all duration-500 cursor-pointer group ${
           dragActive 
             ? "border-violet-500 bg-violet-50/20 dark:bg-violet-900/10 scale-[0.98] shadow-2xl shadow-violet-500/10" 
-            : "border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-violet-400 dark:hover:border-violet-700 shadow-sm"
+            : "border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-violet-400 dark:hover:border-violet-700 shadow-sm hover:bg-slate-50/50 dark:hover:bg-slate-900/80"
         } ${isLoading ? "opacity-50 pointer-events-none grayscale" : ""}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -76,20 +77,18 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, isLoad
         onDrop={handleDrop}
       >
         <div 
-          onClick={triggerFileInput}
-          className="w-20 h-20 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-[2rem] mb-10 flex items-center justify-center text-white shadow-2xl shadow-violet-500/30 transform transition-transform hover:scale-110 cursor-pointer active:scale-90"
+          className="w-20 h-20 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-[2rem] mb-10 flex items-center justify-center text-white shadow-2xl shadow-violet-500/30 transform transition-transform group-hover:scale-110 active:scale-90"
         >
           <i className="fas fa-plus text-2xl"></i>
         </div>
         <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">Add Media Asset</h3>
         <p className="text-slate-500 dark:text-slate-400 text-center mb-12 max-w-sm text-base font-medium leading-relaxed">
-          Drop any audio or video file here to generate high-fidelity transcripts and professional scripts.
+          Drop any audio or video file here or click to browse. Generate high-fidelity transcripts and professional scripts instantly.
         </p>
         
         <input ref={fileInputRef} type="file" accept="audio/*,video/*" className="hidden" onChange={handleChange} />
         
         <button 
-          onClick={triggerFileInput}
           className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-12 py-5 rounded-[2rem] font-black hover:opacity-90 transition-all shadow-2xl shadow-violet-600/20 active:scale-95 flex items-center space-x-4 text-[11px] tracking-[0.2em] uppercase"
         >
           {isLoading ? (

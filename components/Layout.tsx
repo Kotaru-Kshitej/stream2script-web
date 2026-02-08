@@ -127,9 +127,9 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 tracking-[0.4em] uppercase mb-6">Pioneering Professional AI Transcription</p>
           <div className="flex justify-center space-x-10 text-[11px] font-black text-slate-500 dark:text-slate-500">
-             <a href="#" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">GitHub</a>
-             <a href="#" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">Documentation</a>
-             <a href="#" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">API Support</a>
+             <a href="https://github.com/Kotaru-Kshitej/Stream2Script" target="_blank" rel="noopener noreferrer" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">GitHub</a>
+             <a href="https://ai.google.dev/gemini-api/docs" target="_blank" rel="noopener noreferrer" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">Documentation</a>
+             <a href="https://ai.google.dev/support" target="_blank" rel="noopener noreferrer" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">API Support</a>
           </div>
         </div>
       </footer>

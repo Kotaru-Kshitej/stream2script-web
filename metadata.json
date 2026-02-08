@@ -1,0 +1,7 @@
+{
+  "name": "Stream2Script Pro",
+  "description": "A professional-grade transcription and script generation tool that leverages Gemini's multimodal capabilities to convert audio and video streams into structured scripts, summaries, and screenplays.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

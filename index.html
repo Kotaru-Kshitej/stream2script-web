@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream2Script Pro</title>
+    <script>
+      // Shim process for browser environments to prevent crashes
+      window.process = window.process || { env: {} };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -13,8 +17,8 @@
           extend: {
             colors: {
               brand: {
-                primary: '#6366f1',
-                secondary: '#8b5cf6',
+                primary: '#8b5cf6', // Violet 500
+                secondary: '#d946ef', // Fuchsia 500
               }
             }
           }
@@ -26,15 +30,20 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         body { 
           font-family: 'Inter', sans-serif;
-          transition: background-color 0.3s ease, color 0.3s ease;
+          transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out;
+          animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        /* Custom scrollbar for dark mode */
+        .dark ::-webkit-scrollbar { width: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #020617; }
+        .dark ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 5px; border: 2px solid #020617; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #334155; }
     </style>
 <script type="importmap">
 {

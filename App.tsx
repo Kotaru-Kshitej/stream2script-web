@@ -57,15 +57,20 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
-      return localStorage.getItem('s2s_theme') === 'dark';
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('s2s_theme');
+        if (saved) return saved === 'dark';
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
     } catch {
       return false;
     }
+    return false;
   });
 
   const t = translations[uiLang];
 
-  // Theme effect - Apply to documentElement for proper Tailwind class-based dark mode
+  // Theme effect
   useEffect(() => {
     try {
       if (isDarkMode) {
@@ -76,7 +81,7 @@ const App: React.FC = () => {
         localStorage.setItem('s2s_theme', 'light');
       }
     } catch (e) {
-      console.error("Theme switch failed", e);
+      console.error("Theme sync failed", e);
     }
   }, [isDarkMode]);
 
@@ -116,6 +121,7 @@ const App: React.FC = () => {
     setResult(item.result);
     setMode(AppMode.UPLOAD);
     setView('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFileSelect = async (file: File, transLang: string) => {
@@ -127,7 +133,7 @@ const App: React.FC = () => {
       reader.onload = async () => {
         const resultBase64 = reader.result;
         if (typeof resultBase64 !== 'string') {
-          setError("Failed to read file.");
+          setError("Internal file read error.");
           setIsLoading(false);
           return;
         }
@@ -138,15 +144,20 @@ const App: React.FC = () => {
           setResult(scriptResult);
           setMode(AppMode.UPLOAD);
           addToHistory(scriptResult);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err: any) {
-          setError(err.message || "Transcription failed. Please try a different file.");
+          setError(err.message || "The AI encountered an issue processing your request.");
         } finally {
           setIsLoading(false);
         }
       };
+      reader.onerror = () => {
+        setError("Error accessing the local file.");
+        setIsLoading(false);
+      };
       reader.readAsDataURL(file);
     } catch (err) {
-      setError("Error reading file.");
+      setError("Critical uploader crash.");
       setIsLoading(false);
     }
   };
@@ -158,6 +169,9 @@ const App: React.FC = () => {
     setIsLoading(false);
   };
 
+  // Check for API key globally
+  const hasApiKey = typeof process !== 'undefined' && process.env && process.env.API_KEY;
+
   return (
     <Layout 
       uiLang={uiLang} 
@@ -167,6 +181,18 @@ const App: React.FC = () => {
       isDarkMode={isDarkMode}
       toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
     >
+      {!hasApiKey && (
+        <div className="max-w-xl mx-auto bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 p-8 rounded-3xl mb-8 animate-fadeIn">
+          <div className="flex space-x-4">
+            <i className="fas fa-triangle-exclamation text-amber-500 text-xl"></i>
+            <div>
+              <h3 className="font-black text-amber-900 dark:text-amber-400 uppercase text-[10px] tracking-widest mb-1">Configuration Required</h3>
+              <p className="text-sm text-amber-800/80 dark:text-amber-500/80 font-medium">The <span className="font-black">API_KEY</span> environment variable is missing in Vercel. Transcription services will not work until this is set.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {view === 'history' && (
         <HistoryView 
           items={history} 
@@ -178,112 +204,109 @@ const App: React.FC = () => {
       {view === 'home' && (
         <>
           {!mode && !isLoading && (
-            <div className="space-y-16 py-8 animate-fadeIn">
-              <div className="text-center max-w-4xl mx-auto pt-8">
-                <h2 className="text-4xl md:text-7xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter leading-none">
+            <div className="space-y-20 py-10 animate-fadeIn">
+              <div className="text-center max-w-5xl mx-auto">
+                <div className="inline-block px-4 py-1.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[10px] font-black uppercase tracking-[0.3em] mb-10 shadow-sm border border-violet-200/50 dark:border-violet-700/50">
+                  Version 2.0 Pro • AI Enhanced
+                </div>
+                <h2 className="text-5xl md:text-8xl font-black text-slate-900 dark:text-white mb-10 tracking-tighter leading-[0.9] lg:px-20">
                   {t.hero.split('Script').map((part, i, arr) => (
                     <React.Fragment key={i}>
                       {part}
                       {i < arr.length - 1 && (
-                        <span className="bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent">
+                        <span className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent">
                           Script
                         </span>
                       )}
                     </React.Fragment>
                   ))}
                 </h2>
-                <p className="text-base text-slate-500 dark:text-slate-400 mb-12 leading-relaxed max-w-xl mx-auto font-medium">
+                <p className="text-lg text-slate-500 dark:text-slate-400 mb-14 leading-relaxed max-w-2xl mx-auto font-medium">
                   {t.sub}
                 </p>
                 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
                   <button 
                     onClick={() => setMode(AppMode.LIVE)}
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black shadow-2xl shadow-indigo-500/30 hover:opacity-90 hover:-translate-y-0.5 transition-all flex items-center justify-center text-[11px] tracking-[0.2em] uppercase"
+                    className="group w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-[2rem] font-black shadow-2xl shadow-violet-600/30 hover:scale-105 transition-all flex items-center justify-center text-[12px] tracking-[0.2em] uppercase"
                   >
-                    <i className="fas fa-microphone-alt mr-3 text-xs"></i>
+                    <i className="fas fa-microphone-alt mr-3 text-sm group-hover:animate-pulse"></i>
                     {t.startLive}
                   </button>
                   <button 
                     onClick={() => document.getElementById('uploader')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl font-black hover:bg-slate-50 dark:hover:bg-slate-700 hover:-translate-y-0.5 transition-all flex items-center justify-center text-[11px] tracking-[0.2em] uppercase shadow-sm"
+                    className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] font-black hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-center text-[12px] tracking-[0.2em] uppercase"
                   >
-                    <i className="fas fa-file-upload mr-3 text-xs"></i>
+                    <i className="fas fa-file-upload mr-3 text-sm"></i>
                     {t.uploadBtn}
                   </button>
                 </div>
               </div>
 
-              <div id="uploader" className="pt-8 scroll-mt-24">
+              <div id="uploader" className="pt-10 scroll-mt-28">
                 <FileUploader onFileSelect={handleFileSelect} isLoading={isLoading} />
               </div>
 
-              <div className="grid md:grid-cols-3 gap-6 pb-20">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm transition hover:shadow-xl hover:shadow-indigo-500/5 duration-300">
-                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-6 border border-indigo-100 dark:border-indigo-900/30">
-                    <i className="fas fa-user-friends text-lg"></i>
+              <div className="grid md:grid-cols-3 gap-8 pb-10">
+                {[
+                  { icon: 'fa-user-friends', title: t.diarization, sub: t.diarizationSub },
+                  { icon: 'fa-magic', title: t.formatting, sub: t.formattingSub },
+                  { icon: 'fa-bolt', title: t.realtime, sub: t.realtimeSub }
+                ].map((feat, i) => (
+                  <div key={i} className="bg-white dark:bg-slate-900/60 p-10 rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 shadow-sm transition-all hover:shadow-2xl hover:shadow-violet-500/10 hover:-translate-y-2 group">
+                    <div className="w-14 h-14 bg-violet-100 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 rounded-2xl flex items-center justify-center mb-8 border border-violet-100 dark:border-violet-900/30 group-hover:scale-110 transition-transform">
+                      <i className={`fas ${feat.icon} text-xl`}></i>
+                    </div>
+                    <h3 className="text-[11px] font-black mb-3 text-slate-900 dark:text-white uppercase tracking-[0.2em]">{feat.title}</h3>
+                    <p className="text-slate-500 dark:text-slate-500 text-sm leading-relaxed font-medium">{feat.sub}</p>
                   </div>
-                  <h3 className="text-xs font-black mb-2 text-slate-900 dark:text-white uppercase tracking-widest">{t.diarization}</h3>
-                  <p className="text-slate-400 dark:text-slate-500 text-[11px] leading-relaxed font-medium">{t.diarizationSub}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm transition hover:shadow-xl hover:shadow-indigo-500/5 duration-300">
-                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-6 border border-indigo-100 dark:border-indigo-900/30">
-                    <i className="fas fa-magic text-lg"></i>
-                  </div>
-                  <h3 className="text-xs font-black mb-2 text-slate-900 dark:text-white uppercase tracking-widest">{t.formatting}</h3>
-                  <p className="text-slate-400 dark:text-slate-500 text-[11px] leading-relaxed font-medium">{t.formattingSub}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm transition hover:shadow-xl hover:shadow-indigo-500/5 duration-300">
-                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-6 border border-indigo-100 dark:border-indigo-900/30">
-                    <i className="fas fa-bolt text-lg"></i>
-                  </div>
-                  <h3 className="text-xs font-black mb-2 text-slate-900 dark:text-white uppercase tracking-widest">{t.realtime}</h3>
-                  <p className="text-slate-400 dark:text-slate-500 text-[11px] leading-relaxed font-medium">{t.realtimeSub}</p>
-                </div>
+                ))}
               </div>
             </div>
           )}
 
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-32 space-y-8 animate-fadeIn">
+            <div className="flex flex-col items-center justify-center py-32 space-y-10 animate-fadeIn">
               <div className="relative">
-                <div className="w-32 h-32 border-[6px] border-slate-200 dark:border-slate-800 rounded-full border-t-indigo-600 animate-spin shadow-inner"></div>
+                <div className="w-40 h-40 border-[8px] border-slate-100 dark:border-slate-900 rounded-full border-t-violet-600 animate-spin shadow-2xl"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <i className="fas fa-brain text-indigo-600 text-3xl"></i>
+                  <div className="bg-white dark:bg-slate-800 w-24 h-24 rounded-full flex items-center justify-center shadow-lg border border-slate-100 dark:border-slate-700">
+                    <i className="fas fa-brain text-violet-600 text-4xl"></i>
+                  </div>
                 </div>
               </div>
-              <div className="text-center space-y-3">
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">AI Analysis</h3>
-                <p className="text-slate-400 dark:text-slate-600 font-black uppercase tracking-[0.4em] text-[9px]">Transcribing • Structuring • Saving</p>
+              <div className="text-center space-y-4">
+                <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Analyzing Media</h3>
+                <p className="text-slate-400 dark:text-slate-600 font-black uppercase tracking-[0.5em] text-[10px] animate-pulse">Deep Learning Engine Active</p>
               </div>
             </div>
           )}
 
           {error && !isLoading && (
-            <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 border border-red-100 dark:border-red-900/30 rounded-[2.5rem] p-12 text-center shadow-2xl shadow-red-500/5">
-              <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-8">
-                <i className="fas fa-triangle-exclamation text-2xl"></i>
+            <div className="max-w-2xl mx-auto bg-white dark:bg-slate-950 border border-red-200 dark:border-red-900/40 rounded-[3rem] p-16 text-center shadow-2xl shadow-red-500/5 animate-fadeIn">
+              <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-10 shadow-inner">
+                <i className="fas fa-triangle-exclamation text-3xl"></i>
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Process Halted</h3>
-              <p className="text-slate-400 dark:text-slate-500 mb-10 text-sm font-medium">{error}</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">Transcription Interrupted</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-12 text-base font-medium leading-relaxed">{error}</p>
               <button 
                 onClick={reset}
-                className="px-8 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-black hover:bg-black dark:hover:bg-slate-600 transition shadow-xl uppercase text-[10px] tracking-widest"
+                className="px-10 py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl font-black hover:bg-black dark:hover:bg-slate-700 transition shadow-2xl shadow-slate-900/20 uppercase text-[11px] tracking-widest active:scale-95"
               >
-                Reset
+                Clear Error & Retry
               </button>
             </div>
           )}
 
           {mode === AppMode.LIVE && !result && (
             <div className="max-w-5xl mx-auto animate-fadeIn">
-              <div className="mb-8">
+              <div className="mb-10">
                 <button 
                   onClick={reset}
-                  className="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-400 transition flex items-center font-black text-[10px] uppercase tracking-widest shadow-sm"
+                  className="px-6 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-400 transition flex items-center font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
                 >
                   <i className="fas fa-arrow-left mr-3"></i>
-                  Abort
+                  Cancel Session
                 </button>
               </div>
               <LiveSession onStop={reset} />

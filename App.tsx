@@ -56,37 +56,47 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('s2s_theme') === 'dark';
+    try {
+      return localStorage.getItem('s2s_theme') === 'dark';
+    } catch {
+      return false;
+    }
   });
 
   const t = translations[uiLang];
 
   // Theme effect - Apply to documentElement for proper Tailwind class-based dark mode
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('s2s_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('s2s_theme', 'light');
+    try {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('s2s_theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('s2s_theme', 'light');
+      }
+    } catch (e) {
+      console.error("Theme switch failed", e);
     }
   }, [isDarkMode]);
 
   // Load history from localStorage on mount
   useEffect(() => {
-    const savedHistory = localStorage.getItem('s2s_history');
-    if (savedHistory) {
-      try {
+    try {
+      const savedHistory = localStorage.getItem('s2s_history');
+      if (savedHistory) {
         setHistory(JSON.parse(savedHistory));
-      } catch (e) {
-        console.error("Failed to parse history", e);
       }
+    } catch (e) {
+      console.error("Failed to parse history", e);
     }
   }, []);
 
   // Save history to localStorage when updated
   useEffect(() => {
-    localStorage.setItem('s2s_history', JSON.stringify(history));
+    try {
+      localStorage.setItem('s2s_history', JSON.stringify(history));
+    } catch (e) {}
   }, [history]);
 
   const addToHistory = (res: ScriptResult) => {
@@ -115,7 +125,14 @@ const App: React.FC = () => {
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64Data = (reader.result as string).split(',')[1];
+        const resultBase64 = reader.result;
+        if (typeof resultBase64 !== 'string') {
+          setError("Failed to read file.");
+          setIsLoading(false);
+          return;
+        }
+        
+        const base64Data = resultBase64.split(',')[1];
         try {
           const scriptResult = await geminiService.processMedia(base64Data, file.type, transLang);
           setResult(scriptResult);

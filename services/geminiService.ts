@@ -2,15 +2,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ScriptResult } from "../types";
 
-export class GeminiService {
-  private ai: GoogleGenAI;
-
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const getApiKey = (): string => {
+  try {
+    // Standard access for environments that shim process.env
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    console.warn("process.env access failed", e);
   }
+  return '';
+};
 
+export class GeminiService {
   async processMedia(base64Data: string, mimeType: string, targetLanguage: string): Promise<ScriptResult> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      throw new Error("API Key is not configured. Please set the API_KEY environment variable in Vercel.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Analyze this audio/video. 
       Target Language for analysis: ${targetLanguage}.

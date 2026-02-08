@@ -1,10 +1,19 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 
 interface LiveSessionProps {
   onStop: () => void;
 }
+
+const getApiKey = (): string => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {}
+  return '';
+};
 
 export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
   const [isLive, setIsLive] = useState(false);
@@ -38,12 +47,19 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
   };
 
   const startSession = async () => {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      setError("API Key is missing. Please check your environment variables.");
+      return;
+    }
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      const ai = new GoogleGenAI({ apiKey });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContextClass({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
 
       const sessionPromise = ai.live.connect({
@@ -81,27 +97,33 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
               }
             }
           },
-          onerror: (e) => setError("Stream error occurred"),
+          onerror: (e) => {
+            console.error("Live Error:", e);
+            setError("Stream error occurred. Check connection and API Key.");
+          },
           onclose: () => setIsLive(false)
         },
         config: {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          systemInstruction: 'You are a live scribe. Listen to the user and generate a live script. Acknowledge what they say and help them format it into a professional screenplay or document structure.'
+          systemInstruction: 'You are a live scribe. Listen to the user and generate a live script.'
         }
       });
 
       sessionPromiseRef.current = sessionPromise;
       setIsLive(true);
-    } catch (err) {
-      setError("Could not start microphone session.");
+    } catch (err: any) {
+      console.error("Session Start Error:", err);
+      setError(err.message || "Could not start microphone session.");
     }
   };
 
   const stopSession = () => {
     streamRef.current?.getTracks().forEach(track => track.stop());
-    audioContextRef.current?.close();
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
     setIsLive(false);
     onStop();
   };
@@ -111,64 +133,65 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
     return () => {
       stopSession();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[600px]">
-      <div className="bg-slate-900 p-4 flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[600px] animate-fadeIn">
+      <div className="bg-slate-900 dark:bg-black p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="flex space-x-1">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-75"></span>
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-150"></span>
           </div>
-          <span className="text-white font-mono text-sm">LIVE SESSION ACTIVE</span>
+          <span className="text-white font-mono text-xs tracking-widest uppercase">Live Session Active</span>
         </div>
         <button 
           onClick={stopSession}
-          className="text-slate-400 hover:text-white transition"
+          className="text-slate-400 hover:text-white transition p-2"
         >
           <i className="fas fa-times"></i>
         </button>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50">
+      <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50 dark:bg-slate-950/50">
         {transcripts.length === 0 && !error && (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400">
-            <i className="fas fa-microphone-alt text-4xl mb-4 animate-bounce"></i>
-            <p>Listening for input...</p>
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600">
+            <i className="fas fa-microphone-alt text-4xl mb-4 animate-pulse"></i>
+            <p className="font-bold text-xs uppercase tracking-widest">Awaiting Audio Input...</p>
           </div>
         )}
         
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
-            <i className="fas fa-exclamation-triangle mr-3"></i>
-            {error}
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-2xl flex flex-col items-center text-center">
+            <i className="fas fa-exclamation-triangle text-2xl mb-3"></i>
+            <p className="font-bold text-sm">{error}</p>
           </div>
         )}
 
         {transcripts.map((t, idx) => (
-          <div key={idx} className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${
-            t.startsWith('User:') ? 'ml-auto bg-indigo-600 text-white' : 'bg-white text-slate-800'
+          <div key={idx} className={`max-w-[85%] rounded-2xl p-4 shadow-sm text-sm ${
+            t.startsWith('User:') 
+              ? 'ml-auto bg-indigo-600 text-white font-medium' 
+              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700'
           }`}>
             {t.split(': ').slice(1).join(': ')}
           </div>
         ))}
       </div>
 
-      <div className="p-4 border-t border-slate-200 bg-white">
-        <div className="flex items-center justify-center space-x-6">
-          <button className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition">
+      <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="flex items-center justify-center space-x-8">
+          <button className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
             <i className="fas fa-pause"></i>
           </button>
           <button 
             onClick={stopSession}
-            className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-200 hover:bg-red-600 transition"
+            className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-white shadow-xl shadow-red-500/20 hover:bg-red-600 transition hover:scale-110 active:scale-95"
           >
             <i className="fas fa-stop text-xl"></i>
           </button>
-          <button className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition">
+          <button className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
             <i className="fas fa-cog"></i>
           </button>
         </div>

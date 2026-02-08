@@ -63,8 +63,8 @@ const App: React.FC = () => {
     } catch { return false; }
   });
 
-  // Safe API Key detection for Vercel
-  const apiKey = (window as any).process?.env?.API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '') || '';
+  // Resilient API key check
+  const apiKey = (window as any).process?.env?.API_KEY || process.env.API_KEY || "";
 
   const t = translations[uiLang];
 
@@ -93,7 +93,7 @@ const App: React.FC = () => {
 
   const handleFileSelect = async (file: File, transLang: string) => {
     if (!apiKey) {
-      setError("Environment Variable 'API_KEY' is missing on Vercel. Transcription cannot proceed.");
+      setError("Configuration Required: Please add API_KEY to your Vercel Environment Variables.");
       return;
     }
     setIsLoading(true);
@@ -138,16 +138,25 @@ const App: React.FC = () => {
       isDarkMode={isDarkMode}
       toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
     >
+      {/* Vercel Configuration Alert */}
       {!apiKey && view === 'home' && (
-        <div className="max-w-2xl mx-auto mb-12 p-8 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-3xl flex items-start space-x-6 animate-fadeIn">
-          <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <i className="fas fa-key text-xl"></i>
+        <div className="max-w-4xl mx-auto mb-12 p-8 bg-amber-50 dark:bg-amber-900/10 border-2 border-amber-200 dark:border-amber-900/30 rounded-[2.5rem] flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8 animate-fadeIn text-center md:text-left shadow-2xl shadow-amber-500/5">
+          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-inner">
+            <i className="fas fa-key text-2xl"></i>
           </div>
           <div>
-            <h3 className="font-black text-amber-900 dark:text-amber-400 uppercase text-xs tracking-widest mb-2">Vercel Configuration Needed</h3>
-            <p className="text-sm text-amber-800/80 dark:text-amber-500/80 font-medium leading-relaxed">
-              Add your <span className="font-black">API_KEY</span> in Vercel Project Settings. Get one for free at <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline font-black hover:text-amber-600">AI Studio</a>.
+            <h3 className="font-black text-amber-900 dark:text-amber-400 uppercase text-xs tracking-widest mb-3">Vercel Setup Required</h3>
+            <p className="text-sm text-amber-800/80 dark:text-amber-500/80 font-medium leading-relaxed mb-4">
+              The application is running but needs an <span className="font-black">API_KEY</span> to perform transcriptions. Please add it to your Vercel Project Settings and redeploy.
             </p>
+            <a 
+              href="https://aistudio.google.com/app/apikey" 
+              target="_blank" 
+              className="inline-flex items-center space-x-2 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-600/20"
+            >
+              <span>Get Free Key</span>
+              <i className="fas fa-external-link-alt text-[8px]"></i>
+            </a>
           </div>
         </div>
       )}
@@ -166,7 +175,7 @@ const App: React.FC = () => {
             <div className="space-y-20 py-10 animate-fadeIn">
               <div className="text-center max-w-5xl mx-auto">
                 <div className="inline-block px-4 py-1.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[10px] font-black uppercase tracking-[0.3em] mb-10 shadow-sm border border-violet-200/50 dark:border-violet-700/50">
-                  Version 2.0 Pro • Cloud Optimized
+                  Version 2.0 Pro • Cloud Ready
                 </div>
                 <h2 className="text-5xl md:text-8xl font-black text-slate-900 dark:text-white mb-10 tracking-tighter leading-[0.9] lg:px-20">
                   {t.hero.split('Script').map((part, i, arr) => (
@@ -215,7 +224,7 @@ const App: React.FC = () => {
              <div className="max-w-2xl mx-auto bg-white dark:bg-slate-950 border border-red-200 dark:border-red-900/40 rounded-[3rem] p-16 text-center shadow-2xl animate-fadeIn">
                <i className="fas fa-triangle-exclamation text-red-500 text-4xl mb-6"></i>
                <h3 className="text-2xl font-black mb-4">Process Failed</h3>
-               <p className="text-slate-500 dark:text-slate-400 mb-8 font-medium">{error}</p>
+               <p className="text-slate-500 dark:text-slate-400 mb-8 font-medium leading-relaxed">{error}</p>
                <button onClick={reset} className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest">Reset</button>
              </div>
           )}

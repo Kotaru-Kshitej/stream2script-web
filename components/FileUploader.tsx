@@ -39,6 +39,10 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, isLoad
     }
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-10 flex flex-col items-center">
@@ -71,7 +75,10 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, isLoad
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <div className="w-20 h-20 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-[2rem] mb-10 flex items-center justify-center text-white shadow-2xl shadow-violet-500/30 transform transition-transform hover:scale-110">
+        <div 
+          onClick={triggerFileInput}
+          className="w-20 h-20 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-[2rem] mb-10 flex items-center justify-center text-white shadow-2xl shadow-violet-500/30 transform transition-transform hover:scale-110 cursor-pointer active:scale-90"
+        >
           <i className="fas fa-plus text-2xl"></i>
         </div>
         <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">Add Media Asset</h3>
@@ -82,7 +89,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, isLoad
         <input ref={fileInputRef} type="file" accept="audio/*,video/*" className="hidden" onChange={handleChange} />
         
         <button 
-          onClick={() => fileInputRef.current?.click()}
+          onClick={triggerFileInput}
           className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-12 py-5 rounded-[2rem] font-black hover:opacity-90 transition-all shadow-2xl shadow-violet-600/20 active:scale-95 flex items-center space-x-4 text-[11px] tracking-[0.2em] uppercase"
         >
           {isLoading ? (

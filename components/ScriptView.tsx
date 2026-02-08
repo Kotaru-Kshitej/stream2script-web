@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { ScriptResult } from '../types';
+import { jsPDF } from 'jspdf';
 
 interface ScriptViewProps {
   data: ScriptResult;
@@ -21,9 +22,65 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
     URL.revokeObjectURL(url);
   };
 
+  const exportAsPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let y = 20;
+
+    // Helper for multi-page text
+    const addText = (text: string, fontSize: number = 10, isBold: boolean = false) => {
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+      const lines = doc.splitTextToSize(text, contentWidth);
+      
+      lines.forEach((line: string) => {
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, margin, y);
+        y += fontSize * 0.5;
+      });
+      y += 5; // Spacing after block
+    };
+
+    // Header
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text(data.title, margin, y);
+    y += 15;
+
+    // AI Summary
+    addText("EXECUTIVE SUMMARY", 12, true);
+    addText(data.summary, 10);
+    y += 10;
+
+    // Insights
+    addText("KEY INSIGHTS", 12, true);
+    addText(`Sentiment: ${data.sentiment}`, 10);
+    addText(`Keywords: ${data.keywords.join(', ')}`, 10);
+    y += 10;
+
+    // Transcript
+    addText("COMPLETE TRANSCRIPT", 12, true);
+    data.transcript.forEach((segment) => {
+      const header = `[${segment.timestamp || '00:00:00'}] ${segment.speaker}:`;
+      addText(header, 9, true);
+      addText(segment.text, 10);
+      y += 2;
+    });
+
+    doc.save(`${data.title.replace(/\s+/g, '_')}_Analysis.pdf`);
+  };
+
   const exportAs = (format: string) => {
     setShowExport(false);
     switch (format) {
+      case 'pdf':
+        exportAsPDF();
+        break;
       case 'txt':
         downloadFile(`${data.title}\n\n${data.formattedScript}`, `${data.title}.txt`, 'text/plain');
         break;
@@ -35,7 +92,7 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
         downloadFile(srt, `${data.title}.srt`, 'text/plain');
         break;
       default:
-        alert(`Exporting as ${format.toUpperCase()} (Simulated PDF/DOCX logic)`);
+        console.log(`Format ${format} not fully implemented`);
     }
   };
 
@@ -71,6 +128,9 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
               </button>
               {showExport && (
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 py-2 overflow-hidden">
+                  <button onClick={() => exportAs('pdf')} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center transition-colors">
+                    <i className="fas fa-file-pdf mr-3 text-red-400 w-4"></i> Document (.pdf)
+                  </button>
                   <button onClick={() => exportAs('txt')} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center transition-colors">
                     <i className="fas fa-file-alt mr-3 text-slate-400 w-4"></i> Text File (.txt)
                   </button>

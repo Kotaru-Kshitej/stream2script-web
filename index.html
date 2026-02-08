@@ -6,25 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream2Script Pro</title>
     <script>
-      // 1. CRITICAL: Prevent "process is not defined" crashes in the browser
-      // This MUST run before any module imports.
-      window.process = {
-        env: {
-          API_KEY: "" 
-        }
-      };
-
-      // 2. Global Error Catcher for Debugging on Vercel
+      /**
+       * CRITICAL: Vercel/Browser Compatibility Shim
+       * Prevents "ReferenceError: process is not defined" which causes the white screen.
+       */
+      window.process = window.process || { env: {} };
+      window.process.env = window.process.env || {};
+      
+      // Safety check for global crashes
       window.onerror = function(msg, url, line, col, error) {
-        var errorDisplay = document.getElementById('critical-error-screen');
-        if (errorDisplay) {
-          errorDisplay.style.display = 'flex';
-          document.getElementById('error-message-text').textContent = msg;
-          if (error && error.stack) {
-            document.getElementById('error-stack-text').textContent = error.stack;
-          }
+        var root = document.getElementById('root');
+        if (root && root.innerHTML === "") {
+          root.innerHTML = '<div style="background:#0f172a;color:#f8fafc;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:20px;">' +
+            '<div><h1 style="font-size:24px;margin-bottom:10px;">Application Load Error</h1>' +
+            '<p style="color:#94a3b8;font-size:14px;max-width:400px;margin:0 auto;">' + msg + '</p>' +
+            '<p style="margin-top:20px;font-size:12px;color:#64748b;">Check Vercel Environment Variables for API_KEY</p></div></div>';
         }
-        return false;
       };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,8 +32,8 @@
           extend: {
             colors: {
               brand: {
-                primary: '#8b5cf6', // Violet 500
-                secondary: '#d946ef', // Fuchsia 500
+                primary: '#8b5cf6',
+                secondary: '#d946ef',
               }
             }
           }
@@ -61,43 +58,21 @@
         .dark ::-webkit-scrollbar { width: 10px; }
         .dark ::-webkit-scrollbar-track { background: #020617; }
         .dark ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 5px; border: 2px solid #020617; }
-        
-        #critical-error-screen {
-          display: none;
-          position: fixed;
-          inset: 0;
-          background: #020617;
-          color: #f8fafc;
-          z-index: 99999;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 2rem;
-        }
     </style>
 <script type="importmap">
 {
   "imports": {
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
     "react-dom/": "https://esm.sh/react-dom@19.0.0/",
     "react": "https://esm.sh/react@19.0.0",
     "react/": "https://esm.sh/react@19.0.0/",
-    "@google/genai": "https://esm.sh/@google/genai@1.40.0"
+    "@google/genai": "https://esm.sh/@google/genai@1.40.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.1"
   }
 }
 </script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
-    <div id="critical-error-screen">
-      <div class="max-w-2xl w-full bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl">
-        <i class="fas fa-triangle-exclamation text-brand-primary text-4xl mb-6"></i>
-        <h1 class="text-2xl font-black mb-4">Application Failed to Launch</h1>
-        <p id="error-message-text" class="text-slate-400 font-mono text-sm mb-4"></p>
-        <pre id="error-stack-text" class="bg-black/50 p-4 rounded-xl text-[10px] overflow-auto max-h-48 mb-8 text-slate-500"></pre>
-        <p class="text-xs text-slate-500 mb-8 uppercase tracking-widest font-bold">Check Vercel Build Logs & API Key</p>
-        <button onclick="window.location.reload()" class="px-8 py-3 bg-white text-slate-950 font-black rounded-xl text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors">Reload Application</button>
-      </div>
-    </div>
-
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
 </body>

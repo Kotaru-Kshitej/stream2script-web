@@ -3,11 +3,22 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { ScriptResult } from "../types";
 
 export class GeminiService {
+  private getApiKey(): string {
+    // Try primary environment variable first
+    if (process.env.API_KEY) return process.env.API_KEY;
+    
+    // Fallback to shimmed window process for browser deployments
+    const win = window as any;
+    if (win.process?.env?.API_KEY) return win.process.env.API_KEY;
+    
+    return "";
+  }
+
   async processMedia(base64Data: string, mimeType: string, targetLanguage: string): Promise<ScriptResult> {
-    const apiKey = process.env.API_KEY || (window as any).process?.env?.API_KEY;
+    const apiKey = this.getApiKey();
     
     if (!apiKey) {
-      throw new Error("API_KEY is not defined. Please check your Vercel project environment variables.");
+      throw new Error("API_KEY is missing. Please add it to your Vercel Environment Variables.");
     }
 
     const ai = new GoogleGenAI({ apiKey });

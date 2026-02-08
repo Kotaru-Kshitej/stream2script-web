@@ -2,47 +2,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ScriptResult } from "../types";
 
-const getApiKey = (): string => {
-  try {
-    // Check global process shim first
-    const globalProcess = (window as any).process;
-    if (globalProcess?.env?.API_KEY) {
-      return globalProcess.env.API_KEY;
-    }
-    
-    // Check standard Node.js style access
-    if (typeof process !== 'undefined' && process.env?.API_KEY) {
-      return process.env.API_KEY;
-    }
-  } catch (e) {
-    console.warn("API Key retrieval failed", e);
-  }
-  return '';
-};
-
 export class GeminiService {
   async processMedia(base64Data: string, mimeType: string, targetLanguage: string): Promise<ScriptResult> {
-    const apiKey = getApiKey();
+    const apiKey = process.env.API_KEY || (window as any).process?.env?.API_KEY;
+    
     if (!apiKey) {
-      throw new Error("Missing API Key. Ensure API_KEY is set in Vercel Environment Variables.");
+      throw new Error("API_KEY is not defined. Please check your Vercel project environment variables.");
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const prompt = `
-      Analyze this audio/video. 
-      Target Language for analysis: ${targetLanguage}.
-      
-      Tasks:
-      1. Provide a title for this content.
-      2. Provide a 2-paragraph executive summary.
-      3. Provide a full speaker-labeled transcript with approximate timestamps (HH:MM:SS format).
-      4. Convert the entire content into a professional screenplay format.
-      5. Extract the top 5-7 key topics or keywords.
-      6. Analyze the overall sentiment of the conversation.
-
-      Return the data in a clean JSON format matching the schema exactly.
-    `;
-
+    
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -53,7 +22,7 @@ export class GeminiService {
               mimeType: mimeType,
             },
           },
-          { text: prompt },
+          { text: `Analyze this content and generate a script in ${targetLanguage}. Include: 1. Title, 2. Executive Summary, 3. Timestamped Transcript, 4. Formatted Screenplay, 5. Keywords, 6. Sentiment. Return valid JSON only.` },
         ],
       },
       config: {
@@ -87,8 +56,7 @@ export class GeminiService {
       },
     });
 
-    const text = response.text || '{}';
-    return JSON.parse(text) as ScriptResult;
+    return JSON.parse(response.text || '{}') as ScriptResult;
   }
 }
 

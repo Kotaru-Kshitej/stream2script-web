@@ -6,16 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream2Script Pro</title>
     <script>
-      // CRITICAL: Shim process immediately to prevent ESM module crashes
-      window.process = window.process || { env: {} };
-      
-      // Global error listener to debug blank screens on Vercel
+      // 1. CRITICAL: Prevent "process is not defined" crashes in the browser
+      // This MUST run before any module imports.
+      window.process = {
+        env: {
+          API_KEY: "" 
+        }
+      };
+
+      // 2. Global Error Catcher for Debugging on Vercel
       window.onerror = function(msg, url, line, col, error) {
-        var errorDisplay = document.getElementById('critical-error');
+        var errorDisplay = document.getElementById('critical-error-screen');
         if (errorDisplay) {
-          errorDisplay.style.display = 'block';
-          errorDisplay.querySelector('.msg').textContent = msg;
-          errorDisplay.querySelector('.stack').textContent = error ? error.stack : 'No stack trace';
+          errorDisplay.style.display = 'flex';
+          document.getElementById('error-message-text').textContent = msg;
+          if (error && error.stack) {
+            document.getElementById('error-stack-text').textContent = error.stack;
+          }
         }
         return false;
       };
@@ -28,8 +35,8 @@
           extend: {
             colors: {
               brand: {
-                primary: '#8b5cf6',
-                secondary: '#d946ef',
+                primary: '#8b5cf6', // Violet 500
+                secondary: '#d946ef', // Fuchsia 500
               }
             }
           }
@@ -54,36 +61,44 @@
         .dark ::-webkit-scrollbar { width: 10px; }
         .dark ::-webkit-scrollbar-track { background: #020617; }
         .dark ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 5px; border: 2px solid #020617; }
-        #critical-error {
+        
+        #critical-error-screen {
           display: none;
           position: fixed;
           inset: 0;
-          background: #7f1d1d;
-          color: white;
-          padding: 40px;
-          z-index: 9999;
-          font-family: monospace;
-          overflow: auto;
+          background: #020617;
+          color: #f8fafc;
+          z-index: 99999;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem;
         }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+    "react": "https://esm.sh/react@19.0.0",
+    "react/": "https://esm.sh/react@19.0.0/",
+    "@google/genai": "https://esm.sh/@google/genai@1.40.0"
   }
 }
 </script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
-    <div id="critical-error">
-      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Critical Application Crash</h1>
-      <p class="msg" style="margin-bottom: 10px; font-weight: bold;"></p>
-      <pre class="stack" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 8px; font-size: 12px;"></pre>
-      <p style="margin-top: 20px;">Check Vercel Environment Variables for API_KEY.</p>
+    <div id="critical-error-screen">
+      <div class="max-w-2xl w-full bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl">
+        <i class="fas fa-triangle-exclamation text-brand-primary text-4xl mb-6"></i>
+        <h1 class="text-2xl font-black mb-4">Application Failed to Launch</h1>
+        <p id="error-message-text" class="text-slate-400 font-mono text-sm mb-4"></p>
+        <pre id="error-stack-text" class="bg-black/50 p-4 rounded-xl text-[10px] overflow-auto max-h-48 mb-8 text-slate-500"></pre>
+        <p class="text-xs text-slate-500 mb-8 uppercase tracking-widest font-bold">Check Vercel Build Logs & API Key</p>
+        <button onclick="window.location.reload()" class="px-8 py-3 bg-white text-slate-950 font-black rounded-xl text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors">Reload Application</button>
+      </div>
     </div>
+
     <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>

@@ -7,12 +7,7 @@ interface LiveSessionProps {
 }
 
 const getApiKey = (): string => {
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
-    }
-  } catch (e) {}
-  return '';
+  return process.env.API_KEY || (window as any).process?.env?.API_KEY || '';
 };
 
 export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
@@ -49,7 +44,7 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
   const startSession = async () => {
     const apiKey = getApiKey();
     if (!apiKey) {
-      setError("API Key is missing. Please check your environment variables.");
+      setError("API Key is missing. Transcription cannot start.");
       return;
     }
 
@@ -66,7 +61,6 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
           onopen: () => {
-            console.log('Live session opened');
             const source = audioCtx.createMediaStreamSource(stream);
             const scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
             
@@ -98,8 +92,7 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
             }
           },
           onerror: (e) => {
-            console.error("Live Error:", e);
-            setError("Stream error occurred. Check connection and API Key.");
+            setError("Stream error. Verify API Key and Internet.");
           },
           onclose: () => setIsLive(false)
         },
@@ -107,15 +100,14 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          systemInstruction: 'You are a live scribe. Listen to the user and generate a live script.'
+          systemInstruction: 'You are a professional scribe. Transcribe the user audio accurately.'
         }
       });
 
       sessionPromiseRef.current = sessionPromise;
       setIsLive(true);
     } catch (err: any) {
-      console.error("Session Start Error:", err);
-      setError(err.message || "Could not start microphone session.");
+      setError(err.message || "Failed to access microphone.");
     }
   };
 
@@ -130,69 +122,54 @@ export const LiveSession: React.FC<LiveSessionProps> = ({ onStop }) => {
 
   useEffect(() => {
     startSession();
-    return () => {
-      stopSession();
-    };
+    return () => { stopSession(); };
   }, []);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[600px] animate-fadeIn">
-      <div className="bg-slate-900 dark:bg-black p-4 flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[600px] animate-fadeIn">
+      <div className="bg-slate-900 p-5 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="flex space-x-1">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-75"></span>
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-150"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse delay-75"></span>
           </div>
-          <span className="text-white font-mono text-xs tracking-widest uppercase">Live Session Active</span>
+          <span className="text-white font-black text-[10px] uppercase tracking-[0.2em]">Live Transcription Active</span>
         </div>
-        <button 
-          onClick={stopSession}
-          className="text-slate-400 hover:text-white transition p-2"
-        >
+        <button onClick={stopSession} className="text-slate-400 hover:text-white transition">
           <i className="fas fa-times"></i>
         </button>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50 dark:bg-slate-950/50">
+      <div className="flex-1 p-8 overflow-y-auto space-y-5 bg-slate-50 dark:bg-slate-950/40">
         {transcripts.length === 0 && !error && (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600">
-            <i className="fas fa-microphone-alt text-4xl mb-4 animate-pulse"></i>
-            <p className="font-bold text-xs uppercase tracking-widest">Awaiting Audio Input...</p>
+          <div className="h-full flex flex-col items-center justify-center text-slate-400">
+            <i className="fas fa-microphone-lines text-4xl mb-4 opacity-20"></i>
+            <p className="font-bold text-[10px] uppercase tracking-widest">Awaiting Audio Stream...</p>
           </div>
         )}
         
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-2xl flex flex-col items-center text-center">
-            <i className="fas fa-exclamation-triangle text-2xl mb-3"></i>
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 text-red-600 p-6 rounded-2xl text-center">
+            <i className="fas fa-exclamation-circle text-xl mb-2"></i>
             <p className="font-bold text-sm">{error}</p>
           </div>
         )}
 
         {transcripts.map((t, idx) => (
-          <div key={idx} className={`max-w-[85%] rounded-2xl p-4 shadow-sm text-sm ${
+          <div key={idx} className={`max-w-[80%] rounded-2xl p-4 text-sm font-medium ${
             t.startsWith('User:') 
-              ? 'ml-auto bg-indigo-600 text-white font-medium' 
-              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700'
+              ? 'ml-auto bg-violet-600 text-white shadow-lg' 
+              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm'
           }`}>
             {t.split(': ').slice(1).join(': ')}
           </div>
         ))}
       </div>
 
-      <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="flex items-center justify-center space-x-8">
-          <button className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-            <i className="fas fa-pause"></i>
-          </button>
-          <button 
-            onClick={stopSession}
-            className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-white shadow-xl shadow-red-500/20 hover:bg-red-600 transition hover:scale-110 active:scale-95"
-          >
-            <i className="fas fa-stop text-xl"></i>
-          </button>
-          <button className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-            <i className="fas fa-cog"></i>
+      <div className="p-8 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="flex items-center justify-center space-x-10">
+          <button onClick={stopSession} className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center text-white shadow-2xl shadow-red-500/30 hover:bg-red-600 transition hover:scale-105 active:scale-95">
+            <i className="fas fa-stop text-2xl"></i>
           </button>
         </div>
       </div>

@@ -48,6 +48,15 @@ const translations = {
 };
 
 const App: React.FC = () => {
+  // Safe environment check
+  const getSafeEnv = (key: string) => {
+    try {
+      return (window as any).process?.env?.[key] || '';
+    } catch {
+      return '';
+    }
+  };
+
   const [uiLang, setUiLang] = useState<UILanguage>('English');
   const [view, setView] = useState<AppView>('home');
   const [mode, setMode] = useState<AppMode | null>(null);
@@ -57,20 +66,17 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('s2s_theme');
-        if (saved) return saved === 'dark';
-        return window.matchMedia('(prefers-color-scheme: dark)').matches;
-      }
+      const saved = localStorage.getItem('s2s_theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch {
       return false;
     }
-    return false;
   });
 
   const t = translations[uiLang];
+  const apiKey = getSafeEnv('API_KEY');
 
-  // Theme effect
   useEffect(() => {
     try {
       if (isDarkMode) {
@@ -80,24 +86,18 @@ const App: React.FC = () => {
         document.documentElement.classList.remove('dark');
         localStorage.setItem('s2s_theme', 'light');
       }
-    } catch (e) {
-      console.error("Theme sync failed", e);
-    }
+    } catch (e) {}
   }, [isDarkMode]);
 
-  // Load history from localStorage on mount
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem('s2s_history');
       if (savedHistory) {
         setHistory(JSON.parse(savedHistory));
       }
-    } catch (e) {
-      console.error("Failed to parse history", e);
-    }
+    } catch (e) {}
   }, []);
 
-  // Save history to localStorage when updated
   useEffect(() => {
     try {
       localStorage.setItem('s2s_history', JSON.stringify(history));
@@ -125,6 +125,10 @@ const App: React.FC = () => {
   };
 
   const handleFileSelect = async (file: File, transLang: string) => {
+    if (!apiKey) {
+      setError("Please configure your API_KEY in Vercel settings.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     
@@ -133,7 +137,7 @@ const App: React.FC = () => {
       reader.onload = async () => {
         const resultBase64 = reader.result;
         if (typeof resultBase64 !== 'string') {
-          setError("Internal file read error.");
+          setError("File read failed.");
           setIsLoading(false);
           return;
         }
@@ -146,18 +150,14 @@ const App: React.FC = () => {
           addToHistory(scriptResult);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err: any) {
-          setError(err.message || "The AI encountered an issue processing your request.");
+          setError(err.message || "AI processing error.");
         } finally {
           setIsLoading(false);
         }
       };
-      reader.onerror = () => {
-        setError("Error accessing the local file.");
-        setIsLoading(false);
-      };
       reader.readAsDataURL(file);
     } catch (err) {
-      setError("Critical uploader crash.");
+      setError("Uploader crash.");
       setIsLoading(false);
     }
   };
@@ -169,9 +169,6 @@ const App: React.FC = () => {
     setIsLoading(false);
   };
 
-  // Check for API key globally
-  const hasApiKey = typeof process !== 'undefined' && process.env && process.env.API_KEY;
-
   return (
     <Layout 
       uiLang={uiLang} 
@@ -181,15 +178,24 @@ const App: React.FC = () => {
       isDarkMode={isDarkMode}
       toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
     >
-      {!hasApiKey && (
-        <div className="max-w-xl mx-auto bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 p-8 rounded-3xl mb-8 animate-fadeIn">
-          <div className="flex space-x-4">
-            <i className="fas fa-triangle-exclamation text-amber-500 text-xl"></i>
-            <div>
-              <h3 className="font-black text-amber-900 dark:text-amber-400 uppercase text-[10px] tracking-widest mb-1">Configuration Required</h3>
-              <p className="text-sm text-amber-800/80 dark:text-amber-500/80 font-medium">The <span className="font-black">API_KEY</span> environment variable is missing in Vercel. Transcription services will not work until this is set.</p>
-            </div>
+      {!apiKey && (
+        <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 border-2 border-amber-500 rounded-[2.5rem] p-12 text-center shadow-2xl animate-fadeIn mb-12">
+          <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl">
+            <i className="fas fa-key text-3xl"></i>
           </div>
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">API Configuration Required</h3>
+          <p className="text-slate-500 dark:text-slate-400 mb-8 text-base font-medium leading-relaxed">
+            The app cannot process media without a Gemini API Key. Please add <span className="font-black text-violet-600">API_KEY</span> to your Vercel Project Settings.
+          </p>
+          <a 
+            href="https://aistudio.google.com/app/apikey" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-3 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black hover:opacity-90 transition shadow-xl uppercase text-[10px] tracking-widest"
+          >
+            <span>Get Free Key from AI Studio</span>
+            <i className="fas fa-external-link-alt text-[8px]"></i>
+          </a>
         </div>
       )}
 

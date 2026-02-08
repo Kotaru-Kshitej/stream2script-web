@@ -4,12 +4,18 @@ import { ScriptResult } from "../types";
 
 const getApiKey = (): string => {
   try {
-    // Standard access for environments that shim process.env
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    // Check global process shim first
+    const globalProcess = (window as any).process;
+    if (globalProcess?.env?.API_KEY) {
+      return globalProcess.env.API_KEY;
+    }
+    
+    // Check standard Node.js style access
+    if (typeof process !== 'undefined' && process.env?.API_KEY) {
       return process.env.API_KEY;
     }
   } catch (e) {
-    console.warn("process.env access failed", e);
+    console.warn("API Key retrieval failed", e);
   }
   return '';
 };
@@ -18,7 +24,7 @@ export class GeminiService {
   async processMedia(base64Data: string, mimeType: string, targetLanguage: string): Promise<ScriptResult> {
     const apiKey = getApiKey();
     if (!apiKey) {
-      throw new Error("API Key is not configured. Please set the API_KEY environment variable in Vercel.");
+      throw new Error("Missing API Key. Ensure API_KEY is set in Vercel Environment Variables.");
     }
 
     const ai = new GoogleGenAI({ apiKey });

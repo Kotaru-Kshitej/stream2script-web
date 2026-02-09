@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ScriptResult } from '../types';
 import { jsPDF } from 'jspdf';
+import { ChatBot } from './ChatBot';
 
 interface ScriptViewProps {
   data: ScriptResult;
@@ -9,8 +10,19 @@ interface ScriptViewProps {
 }
 
 export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
-  const [activeTab, setActiveTab] = useState<'script' | 'transcript' | 'summary' | 'insights'>('script');
+  const [activeTab, setActiveTab] = useState<'script' | 'transcript' | 'summary' | 'insights' | 'chat'>('script');
   const [showExport, setShowExport] = useState(false);
+
+  /**
+   * Cleans text by resolving escaped newlines and removing stray markdown artifacts.
+   */
+  const cleanContent = (text: string) => {
+    if (!text) return "";
+    // Replace literal "\n" strings (common in JSON responses) with actual newlines
+    let processed = text.replace(/\\n/g, '\n');
+    // Ensure actual newlines aren't doubled if already present
+    return processed.replace(/\n\n\n+/g, '\n\n');
+  };
 
   const downloadFile = (content: string, filename: string, mimeType: string) => {
     const blob = new Blob([content], { type: mimeType });
@@ -29,11 +41,10 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
     const contentWidth = pageWidth - (margin * 2);
     let y = 20;
 
-    // Helper for multi-page text
     const addText = (text: string, fontSize: number = 10, isBold: boolean = false) => {
       doc.setFontSize(fontSize);
       doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-      const lines = doc.splitTextToSize(text, contentWidth);
+      const lines = doc.splitTextToSize(cleanContent(text), contentWidth);
       
       lines.forEach((line: string) => {
         if (y > 280) {
@@ -43,27 +54,23 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
         doc.text(line, margin, y);
         y += fontSize * 0.5;
       });
-      y += 5; // Spacing after block
+      y += 5; 
     };
 
-    // Header
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
     doc.text(data.title, margin, y);
     y += 15;
 
-    // AI Summary
     addText("EXECUTIVE SUMMARY", 12, true);
     addText(data.summary, 10);
     y += 10;
 
-    // Insights
     addText("KEY INSIGHTS", 12, true);
     addText(`Sentiment: ${data.sentiment}`, 10);
     addText(`Keywords: ${data.keywords.join(', ')}`, 10);
     y += 10;
 
-    // Transcript
     addText("COMPLETE TRANSCRIPT", 12, true);
     data.transcript.forEach((segment) => {
       const header = `[${segment.timestamp || '00:00:00'}] ${segment.speaker}:`;
@@ -82,13 +89,13 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
         exportAsPDF();
         break;
       case 'txt':
-        downloadFile(`${data.title}\n\n${data.formattedScript}`, `${data.title}.txt`, 'text/plain');
+        downloadFile(`${data.title}\n\n${cleanContent(data.formattedScript)}`, `${data.title}.txt`, 'text/plain');
         break;
       case 'json':
         downloadFile(JSON.stringify(data, null, 2), `${data.title}.json`, 'application/json');
         break;
       case 'srt':
-        const srt = data.transcript.map((s, i) => `${i + 1}\n${s.timestamp || '00:00:00'} --> ${s.timestamp || '00:00:10'}\n${s.speaker}: ${s.text}\n`).join('\n');
+        const srt = data.transcript.map((s, i) => `${i + 1}\n${s.timestamp || '00:00:00'} --> ${s.timestamp || '00:00:10'}\n${s.speaker}: ${cleanContent(s.text)}\n`).join('\n');
         downloadFile(srt, `${data.title}.srt`, 'text/plain');
         break;
       default:
@@ -148,14 +155,15 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
 
         {/* Tab Navigation */}
         <div className="flex px-8 border-b border-slate-100 dark:border-slate-800 overflow-x-auto bg-white dark:bg-slate-900">
-          {(['script', 'transcript', 'summary', 'insights'] as const).map((tab) => (
+          {(['script', 'transcript', 'summary', 'insights', 'chat'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-5 font-black text-[10px] uppercase tracking-[0.2em] transition relative whitespace-nowrap ${
+              className={`px-6 py-5 font-black text-[10px] uppercase tracking-[0.2em] transition relative whitespace-nowrap flex items-center ${
                 activeTab === tab ? "text-indigo-600 dark:text-indigo-400" : "text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400"
               }`}
             >
+              {tab === 'chat' && <i className="fas fa-sparkles mr-2 text-[8px] animate-pulse"></i>}
               {tab}
               {activeTab === tab && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-t-full"></div>
@@ -167,25 +175,27 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
         {/* Content Section */}
         <div className="p-8 min-h-[500px]">
           {activeTab === 'summary' && (
-            <div className="max-w-3xl animate-fadeIn">
+            <div className="max-w-4xl animate-fadeIn">
               <h3 className="text-xl font-black mb-6 text-slate-800 dark:text-white flex items-center">
                 <i className="fas fa-sparkles mr-3 text-indigo-600 dark:text-indigo-400"></i>
                 AI Summary
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 leading-loose text-lg font-medium whitespace-pre-wrap">{data.summary}</p>
+              <div className="text-slate-600 dark:text-slate-300 leading-relaxed text-lg font-medium whitespace-pre-wrap">
+                {cleanContent(data.summary)}
+              </div>
             </div>
           )}
 
           {activeTab === 'transcript' && (
-            <div className="space-y-4 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn max-w-5xl">
               {data.transcript.map((segment, idx) => (
-                <div key={idx} className="flex flex-col md:flex-row gap-4 p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 transition">
+                <div key={idx} className="flex flex-col md:flex-row gap-4 p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
                   <div className="md:w-40 flex-shrink-0">
                     <span className="font-black text-indigo-600 dark:text-indigo-400 text-[10px] uppercase tracking-tighter block mb-1">{segment.speaker}</span>
                     <span className="text-[9px] font-black text-slate-400 bg-white dark:bg-slate-700 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-600 shadow-sm">{segment.timestamp || '00:00:00'}</span>
                   </div>
                   <div className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                    {segment.text}
+                    {cleanContent(segment.text)}
                   </div>
                 </div>
               ))}
@@ -193,13 +203,17 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
           )}
 
           {activeTab === 'script' && (
-            <div className="bg-slate-950 p-10 rounded-[2rem] font-mono text-sm text-slate-400 whitespace-pre-wrap border-4 border-slate-900 shadow-2xl leading-relaxed animate-fadeIn">
-              {data.formattedScript}
+            <div className="animate-fadeIn max-w-5xl mx-auto">
+              <div className="p-10 bg-slate-50 dark:bg-slate-800/20 rounded-[3rem] border border-slate-100 dark:border-slate-800/50 shadow-inner">
+                 <div className="seamless-script whitespace-pre-wrap text-slate-800 dark:text-slate-200">
+                    {cleanContent(data.formattedScript)}
+                 </div>
+              </div>
             </div>
           )}
 
           {activeTab === 'insights' && (
-            <div className="grid md:grid-cols-2 gap-8 animate-fadeIn">
+            <div className="grid md:grid-cols-2 gap-8 animate-fadeIn max-w-5xl mx-auto">
               <div className="bg-indigo-50/50 dark:bg-indigo-950/20 p-8 rounded-[2.5rem] border border-indigo-100 dark:border-indigo-900/30">
                 <h4 className="font-black text-slate-800 dark:text-white mb-6 flex items-center text-lg uppercase tracking-tight">
                   <i className="fas fa-tags mr-3 text-indigo-600 dark:text-indigo-400"></i>
@@ -220,12 +234,17 @@ export const ScriptView: React.FC<ScriptViewProps> = ({ data, onReset }) => {
                 </h4>
                 <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-violet-100 dark:border-violet-900/40 shadow-sm">
                   <p className="text-slate-700 dark:text-slate-300 font-bold italic text-lg leading-relaxed">
-                    "{data.sentiment}"
+                    "{cleanContent(data.sentiment)}"
                   </p>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Persistent Chat Tab */}
+          <div className={`${activeTab === 'chat' ? 'block' : 'hidden'} animate-fadeIn max-w-4xl mx-auto`}>
+            <ChatBot result={data} />
+          </div>
         </div>
       </div>
     </div>

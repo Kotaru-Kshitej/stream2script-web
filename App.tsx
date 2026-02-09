@@ -52,6 +52,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<AppView>('home');
   const [mode, setMode] = useState<AppMode | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("Analyzing Media");
   const [result, setResult] = useState<ScriptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -63,9 +64,7 @@ const App: React.FC = () => {
     } catch { return false; }
   });
 
-  // Resilient API key check
   const apiKey = (window as any).process?.env?.API_KEY || process.env.API_KEY || "";
-
   const t = translations[uiLang];
 
   useEffect(() => {
@@ -96,6 +95,7 @@ const App: React.FC = () => {
       setError("Configuration Required: Please add API_KEY to your Vercel Environment Variables.");
       return;
     }
+    setLoadingText("Extracting Media Data");
     setIsLoading(true);
     setError(null);
     try {
@@ -122,6 +122,26 @@ const App: React.FC = () => {
     }
   };
 
+  const handleYouTubeSubmit = async (url: string, transLang: string) => {
+    if (!apiKey) {
+      setError("Configuration Required: API_KEY is missing.");
+      return;
+    }
+    setLoadingText("Grounding AI Research");
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await geminiService.processYouTubeUrl(url, transLang);
+      setResult(res);
+      setMode(AppMode.UPLOAD);
+      setHistory(prev => [{ id: Math.random().toString(36).substring(7), date: new Date().toISOString(), result: res }, ...prev]);
+    } catch (err: any) {
+      setError(err.message || "Failed to process YouTube link.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const reset = () => {
     setMode(null);
     setResult(null);
@@ -138,7 +158,6 @@ const App: React.FC = () => {
       isDarkMode={isDarkMode}
       toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
     >
-      {/* Vercel Configuration Alert */}
       {!apiKey && view === 'home' && (
         <div className="max-w-4xl mx-auto mb-12 p-8 bg-amber-50 dark:bg-amber-900/10 border-2 border-amber-200 dark:border-amber-900/30 rounded-[2.5rem] flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8 animate-fadeIn text-center md:text-left shadow-2xl shadow-amber-500/5">
           <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-inner">
@@ -149,11 +168,7 @@ const App: React.FC = () => {
             <p className="text-sm text-amber-800/80 dark:text-amber-500/80 font-medium leading-relaxed mb-4">
               The application is running but needs an <span className="font-black">API_KEY</span> to perform transcriptions. Please add it to your Vercel Project Settings and redeploy.
             </p>
-            <a 
-              href="https://aistudio.google.com/app/apikey" 
-              target="_blank" 
-              className="inline-flex items-center space-x-2 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-600/20"
-            >
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" className="inline-flex items-center space-x-2 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-600/20">
               <span>Get Free Key</span>
               <i className="fas fa-external-link-alt text-[8px]"></i>
             </a>
@@ -203,20 +218,33 @@ const App: React.FC = () => {
               </div>
 
               <div id="uploader" className="pt-10 scroll-mt-28">
-                <FileUploader onFileSelect={handleFileSelect} isLoading={isLoading} />
+                <FileUploader 
+                  onFileSelect={handleFileSelect} 
+                  onUrlSubmit={handleYouTubeSubmit}
+                  isLoading={isLoading} 
+                />
               </div>
             </div>
           )}
 
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-32 space-y-10 animate-fadeIn">
-              <div className="relative">
-                <div className="w-40 h-40 border-[8px] border-slate-100 dark:border-slate-900 rounded-full border-t-violet-600 animate-spin shadow-2xl"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <i className="fas fa-brain text-violet-600 text-4xl"></i>
+            <div className="flex flex-col items-center justify-center py-32 space-y-12 animate-fadeIn">
+              <div className="relative group">
+                {/* Glow Background */}
+                <div className="absolute inset-0 bg-violet-500/20 blur-3xl rounded-full scale-150 animate-pulse"></div>
+                {/* Spinner Track and Spinner */}
+                <div className="w-48 h-48 border-[10px] border-slate-200/50 dark:border-white/5 rounded-full border-t-violet-600 animate-spin shadow-2xl relative z-10"></div>
+                {/* Center Icon */}
+                <div className="absolute inset-0 flex items-center justify-center z-20">
+                   <div className="bg-white dark:bg-slate-900 p-6 rounded-full shadow-xl">
+                      <i className="fas fa-brain text-violet-600 text-5xl animate-pulse"></i>
+                   </div>
                 </div>
               </div>
-              <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Analyzing Media</h3>
+              <div className="text-center relative z-10">
+                <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase mb-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">{loadingText}</h3>
+                <p className="text-slate-500 dark:text-violet-400/80 text-[11px] font-black tracking-[0.6em] uppercase">Powered by Gemini 3 Pro</p>
+              </div>
             </div>
           )}
 

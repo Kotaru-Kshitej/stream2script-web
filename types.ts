@@ -34,3 +34,8 @@ export interface AudioProcessingState {
   progress: number;
   error: string | null;
 }
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
